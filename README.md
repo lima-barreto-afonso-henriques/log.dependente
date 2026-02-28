@@ -23,9 +23,9 @@ Você pode instalar a versão de desenvolvimento diretamente do GitHub utilizand
 ### install.packages("devtools")
 devtools::install_github("lima-barreto-afonso-henriques/log.dependente")
 
-📖 Exemplo de Uso
-library(log.dependente)
-library(wooldridge)
+📖 Exemplo de Uso  
+library(log.dependente)  
+library(wooldridge)  
 
 #### 1. Estimar um modelo em log
 modelo <- lm(log(price) ~ log(nox) + rooms, data = hprice2)
