@@ -5,7 +5,9 @@ Author: Afonso Henriques Lima Barreto <lima.barreto.afonso.henriques@gmail.com>
 Maintainer: Afonso Henriques Lima Barreto <lima.barreto.afonso.henriques@gmail.com>
 Description: Implementa métodos de correção de previsão (Alpha Chapéu e Alpha Til) 
     para modelos de regressão onde a variável dependente está em logaritmo, 
-    seguindo as orientações de Jeffrey Wooldridge.
+    seguindo as orientações de Jeffrey Wooldridge. O pacote permite calcular 
+    previsões pontuais corrigidas e intervalos de confiança na escala original 
+    tanto para a amostra quanto para novos dados.
 License: MIT
 Encoding: UTF-8
 LazyData: true
@@ -13,3 +15,5 @@ RoxygenNote: 7.2.3
 Imports: 
     stats,
     wooldridge
+Suggests: 
+    ggplot2

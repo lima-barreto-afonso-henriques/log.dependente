@@ -1,74 +1,77 @@
 #' Previsão Corrigida para Modelos com Variável Dependente em Log
 #'
 #' Esta função implementa os procedimentos de correção de viés de Wooldridge
-#' para modelos de regressão linear onde a variável dependente foi transformada
-#' usando logaritmo natural. Ela fornece as previsões "ingênuas" e as corrigidas
-#' pelos métodos de Alpha Chapéu (Média) e Alpha Til (Média de Wooldridge).
+#' para modelos de regressão linear onde a variável dependente está em logaritmo.
 #'
 #' @param modelo_log Um objeto de classe \code{lm} estimado com log(y).
 #' @param dados O data.frame original contendo as variáveis do modelo.
 #' @param nome_y Uma string com o nome da variável dependente na escala original (nível).
+#' @param novos_dados Opcional. Um data.frame com novos valores para prever.
+#' @param conf_level Nível de confiança para o intervalo (padrão 0.95).
 #'
 #' @details
 #' Quando prevemos y em um modelo log-nível, exp(log_y_hat) é um estimador
-#' enviesado da média de y. Esta função calcula:
-#' \enumerate{
-#'   \item \strong{Alpha_0_hat}: Baseado na média da exponencial dos resíduos.
-#'   \item \strong{Alpha_0_tilde}: Baseado na regressão de y sobre exp(log_y_hat) sem intercepto.
-#' }
+#' enviesado da média de y. Esta função calcula o Alpha Til (Wooldridge)
+#' através de uma regressão de y sobre m_hat sem intercepto para corrigir esse viés.
 #'
-#' @return Um \code{data.frame} contendo os valores reais, log ajustado,
-#' erro padrão do log, resíduos e as previsões corrigidas.
-#'
-#' @examples
-#' \dontrun{
-#' library(wooldridge)
-#' data(hprice2)
-#' mod <- lm(log(price) ~ log(nox) + rooms, data = hprice2)
-#' resultados <- variavel_dependente_log(mod, hprice2, "price")
-#' head(resultados)
-#' }
+#' @return Um \code{data.frame} contendo os valores reais, previstos com correção,
+#' intervalos de confiança e erro padrão.
 #'
 #' @export
-variavel_dependente_log <- function(modelo_log, dados, nome_y) {
-  # 1. Obter previsões (log y hat) e erros padrão para o log(y)
-  predicao_obj <- predict(modelo_log, se.fit = TRUE)
-  log_y_hat <- predicao_obj$fit
-  se_log_y_hat <- predicao_obj$se.fit
-  u_hat <- residuals(modelo_log)
-  y_real <- dados[[nome_y]]
+variavel_dependente_log <- function(
+  modelo_log,
+  dados,
+  nome_y,
+  novos_dados = NULL,
+  conf_level = 0.95
+) {
+  # 1. Extração robusta da amostra original
+  index_utilizado <- names(residuals(modelo_log))
+  y_real_orig <- dados[index_utilizado, nome_y]
+  log_y_hat_orig <- fitted(modelo_log)
+  u_hat_orig <- residuals(modelo_log)
+  m_hat_orig <- exp(log_y_hat_orig)
 
-  # 2. Calcular m_hat (previsão ingênua: exp(log_y_hat))
-  m_hat <- exp(log_y_hat)
+  # 2. Fatores de Correção (Calculados na Amostra)
+  alpha_0_tilde <- as.numeric(coef(lm(y_real_orig ~ 0 + m_hat_orig)))
 
-  # --- CÁLCULO DOS FATORES DE CORREÇÃO ---
+  # 3. Predição (Amostra vs Novos Dados)
+  if (is.null(novos_dados)) {
+    pred_obj <- predict(modelo_log, se.fit = TRUE)
+    y_real_out <- y_real_orig
+  } else {
+    pred_obj <- predict(modelo_log, newdata = novos_dados, se.fit = TRUE)
+    y_real_out <- rep(NA, nrow(novos_dados))
+  }
 
-  # MÉTODO A: Alpha_0 Chapéu (Média da exponencial dos resíduos)
-  alpha_0_hat <- mean(exp(u_hat))
+  # 4. Cálculo de Intervalo de Confiança
+  t_critico <- qt((1 + conf_level) / 2, df = modelo_log$df.residual)
+  log_upper <- pred_obj$fit + t_critico * pred_obj$se.fit
+  log_lower <- pred_obj$fit - t_critico * pred_obj$se.fit
 
-  # MÉTODO B: Alpha_0 Til (Wooldridge - Regressão sem intercepto)
-  alpha_0_tilde <- as.numeric(coef(lm(y_real ~ 0 + m_hat)))
+  # 5. Aplicação das Correções
+  m_hat <- exp(pred_obj$fit)
+  y_previsto_final <- alpha_0_tilde * m_hat
 
-  # --- GERAR PREVISÕES FINAIS ---
-  y_previsto_A <- alpha_0_hat * m_hat
-  y_previsto_B <- alpha_0_tilde * m_hat
+  ic_lower <- alpha_0_tilde * exp(log_lower)
+  ic_upper <- alpha_0_tilde * exp(log_upper)
 
-  # --- RELATÓRIO NO CONSOLE ---
-  r2_final <- cor(y_real, y_previsto_B)^2
+  # 6. Relatório de Performance
+  if (is.null(novos_dados)) {
+    r2_original <- cor(y_real_out, y_previsto_final)^2
+    cat("\n--- Diagnóstico do Modelo (Wooldridge) ---\n")
+    cat("Fator Alpha Til (Wooldridge):", round(alpha_0_tilde, 4), "\n")
+    cat("R-Quadrado (Nível):          ", round(r2_original, 4), "\n")
+  }
 
-  cat("\n--- Resultados da Correção (Escala Original) ---\n")
-  cat("Alpha_0 Chapéu (Média): ", round(alpha_0_hat, 4), "\n")
-  cat("Alpha_0 Til (Wooldridge):", round(alpha_0_tilde, 4), "\n")
-  cat("R² na escala original:   ", round(r2_final, 4), "\n")
-
-  # Retorna o Dataframe Organizado
+  # 7. Retorno (Mantive Log_Ajustado para facilitar diagnósticos)
   return(data.frame(
-    Real = y_real,
-    Log_Ajustado = log_y_hat,
-    Erro_Padrao_Log = se_log_y_hat,
-    Residuos = u_hat,
-    Prev_Ingenua = m_hat,
-    Prev_Metodo_A = y_previsto_A,
-    Prev_Metodo_B = y_previsto_B
+    Real = y_real_out,
+    Previsto_Wooldridge = y_previsto_final,
+    IC_Inferior = ic_lower,
+    IC_Superior = ic_upper,
+    Log_Ajustado = pred_obj$fit,
+    Erro_Padrao_Log = pred_obj$se.fit,
+    Previsao_Ingenua = m_hat
   ))
 }
