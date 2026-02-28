@@ -1,4 +1,4 @@
-Package: log_dependente
+Package: log.dependente
 Title: Correção de Viés para Modelos Log-y
 Version: 0.1.0
 Author: Afonso Henriques Lima Barreto <lima.barreto.afonso.henriques@gmail.com>
