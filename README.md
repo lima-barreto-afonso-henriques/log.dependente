@@ -40,15 +40,15 @@ devtools::install_github("lima-barreto-afonso-henriques/log.dependente")*
 *library(log.dependente)*  
 *library(wooldridge)*  
 
-**1.** Estimar um modelo log-log ou log-nível
+**#1.** Estimar um modelo log-log ou log-nível  
 data(hprice2)  
 modelo <- lm(log(price) ~ log(nox) + rooms, data = hprice2)  
 
-**2.** Corrigir as previsões da amostra e ver diagnósticos
+**#2.** Corrigir as previsões da amostra e ver diagnósticos  
 resultados <- variavel_dependente_log(modelo, hprice2, "price")  
 head(resultados)  
 
-**3.** Prever para um novo cenário (ex: casa com nox=5 e 6 quartos)  
+**#3.** Prever para um novo cenário (ex: casa com nox=5 e 6 quartos)  
 novas_casas <- data.frame(nox = 5, rooms = 6)  
 previsao_nova <- variavel_dependente_log(modelo, hprice2, "price", novos_dados = novas_casas)  
 print(previsao_nova)  
